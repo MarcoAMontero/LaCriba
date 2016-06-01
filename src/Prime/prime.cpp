@@ -1,7 +1,7 @@
 /*************************************************
 Francisco Molina Castro, Marco Antonio Montero Chavarría
 This code generates prime numbers base on a variable entered by the user, using
-erastostenes' criba method
+eratostenes' criba method
 /* to compile use g++ prime.cpp -o prime */
 /* to run use ./prime <type value>*/
 /* to check execution time in unix run Time ./prime
