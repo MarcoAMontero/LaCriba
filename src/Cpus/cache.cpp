@@ -34,81 +34,157 @@ int main(int argc, char *argv[])
     ifstream myfile(argv[1]);   //open to read
     string line,temp;           //string: <hex memory address> <L/S>
     int count=0;
+    bool parity=true;
     long hextemp;
+    string hexl;
     const int associativity=1;//atoi(argv[2]);
-    const int cachesize1=8192//atoi(argv[3]);
-    const int cachesize2=64768//atoi(argv[4]);
-    const int blocksize=16//atoi(argv[5]);
+    const int cachesize1=8192;//atoi(argv[3]);
+    const int cachesize2=64768;//atoi(argv[4]);
+    const int blocksize=16;//atoi(argv[5]);
     const int blockcount1=(cachesize1/blocksize);
     const int blockcount2=(cachesize2/blocksize);
-    const int setquant=blockcount1/associativity;//If associtivity is 1, the cache is directly mapped
-    const int blocksperset=blockcount1/setquant;
+    const int setquant1=blockcount1/associativity;//If associtivity is 1, the cache is directly mapped
+    const int setquant2=blockcount2/associativity;//If associtivity is 1, the cache is directly mapped
+    const int blocksperset=blockcount1/setquant1;
     cout << "blkcnt1: " << blockcount1 << "."  << endl;
+    cout << "sets1: " << setquant1 << "."  << endl;
     cout << "blkcnt2: " << blockcount2 << "."  << endl;
 
     //cout << "sets: " << setquant << "."  << endl;
     //cout << "blksperset: " << blocksperset << "."  << endl <<endl;
 
 
-    vector <vector <long>> memarray(setquant,vector<long>(blocksperset));//saves first position of the block of memory brought
+    vector <long> memarray1(setquant1);//saves first position of the block of memory brought
+    vector <char> statearray1(setquant1,'I');//saves first position of the block of memory brought
+    vector <long> memarray2(setquant2);//saves first position of the block of memory brought
+    vector <char> statearray2(setquant2, 'I');//saves first position of the block of memory brought
 
+    int setval1;
+    int setval2;
+    long tagval1;
+    long tagval2;
 
     while (getline(myfile, line))/* Get a line and save it in a string */
     {
-        count++;
         istringstream iss(line);
         iss >> temp;
-        hextemp = stol(temp,0,16);
 
+        hextemp = stol(temp,0,16);
+        hexl = temp;
         //cout << "dir: " << hex << hextemp << "."  << endl;
         iss >> temp;
-
-        int setval=hextemp%setquant;//This is the index in mem hier. To know which set
+        cout << "R/W: "<< temp << "."  << endl;
+        setval1=hextemp%setquant1;//This is the index in mem hier. To know which set
+        setval2=hextemp%setquant2;//This is the index in mem hier. To know which set
         //cout << "index: " << hex << setval << "."  << endl;
 
-        long tagval=hextemp/(blockcount*associativity);//This is the tag in mem hier.
-        //cout << "tag: " << hex << tagval << "."  << endl;
+        tagval1=hextemp/(blockcount1*associativity);//This is the tag in mem hier.
+        tagval2=hextemp/(blockcount2*associativity);//This is the tag in mem hier.
 
-        for (int i = 0; i < blocksize; ++i)
-        {
-            if (memarray[setval][i]==0)//Miss, set is not full
-            {
-                memarray[setval][i]=tagval;
-                misses++;
-                //cout << "Oblig. Miss"<< endl;
-                break;
-            } else
-            {
-                if (tagval==memarray[setval][i])//Hit
+        if(parity){
+
+            //cout << "tag: " << hex << tagval << "."  << endl;
+            if (temp=="L"){//Miss, set is not full
+            cout << "reading"<< endl;
+                if (memarray1[setval1]==0)//Miss, set is not full
                 {
-                    //cout << "Hit"<< endl;
-                    break;
-                }
-                else
+                    //cout << "miss"<< endl;
+
+                    memarray1[setval1]=tagval1;
+                    //misses++;
+                } else
                 {
-                    if (i==blocksize-1)//miss
+                    if (setval1!=memarray1[setval1])//Hit
                     {
-                        for (int j = 0; j < blocksperset-2; ++j)//FIFO
-                        {
-                            memarray[setval][j] = memarray[setval][j+1];
-
-                        }
-                        memarray[setval][blocksperset-1] = tagval;
-                        //cout << "Full Miss"<< endl;
-                        misses++;
+                            memarray1[setval1] = tagval1;
+                            //cout << "Full Miss"<< endl;
                     }
                 }
+                if (memarray2[setval2]==tagval2)// on the other cpu
+                {
+                    statearray1[setval1]='S';
+                    statearray2[setval2]='S';
+                }
+                else{
+                    statearray1[setval1]='E';
+                }
+                //break;
             }
-        }
-        //cout << "R/W: "<< temp << "."  << endl;
-        //cout << endl;
-    }
+            else {//Miss, set is not full
+            cout << "writing"<< endl;
+                if (memarray1[setval1]==0)//Miss, set is not full
+                {
+                    //cout << "miss"<< endl;
 
-    cout << "Misses: "<< dec << misses << endl;
-    cout << "Count: "<< dec << count << endl;
-    double mrate = (float)misses/(float)count;
-    //cout << setprecision(2) << fixed;
-    cout << "Miss Rate: " <<  mrate << endl;
+                    memarray1[setval1]=tagval1;
+                    //misses++;
+                } else
+                {
+                    if (tagval1!=memarray1[setval1]){//full miss
+                            memarray1[setval1] = tagval1;
+                            //cout << "Full Miss"<< endl;
+                    }//else is a hit
+                }
+                statearray1[setval1]='M';
+                statearray2[setval2]='I';
+                //break;
+            }
+            parity=false;
+        } else {
+
+            //cout << "tag: " << hex << tagval << "."  << endl;
+            if (temp=="L"){//Miss, set is not full
+            cout << "reading"<< endl;
+                if (memarray2[setval2]==0)//Miss, set is not full
+                {
+                    //cout << "miss"<< endl;
+
+                    memarray2[setval2]=tagval2;
+                    //misses++;
+                } else
+                {
+                    if (setval2!=memarray2[setval2])//Hit
+                    {
+                            memarray2[setval2] = tagval2;
+                            //cout << "Full Miss"<< endl;
+                    }
+                }
+                if (memarray1[setval1]==tagval1)// on the other cpu
+                {
+                    statearray1[setval1]='S';
+                    statearray2[setval2]='S';
+                }
+                else{
+                    statearray2[setval2]='E';
+                }
+                //break;
+            }
+            else {//Miss, set is not full
+            cout << "writing"<< endl;
+                if (memarray2[setval2]==0)//Miss, set is not full
+                {
+                    //cout << "miss"<< endl;
+
+                    memarray2[setval2]=tagval1;
+                    //misses++;
+                } else
+                {
+                    if (tagval2!=memarray2[setval2]){//full miss
+                            memarray2[setval2] = tagval2;
+                            //cout << "Full Miss"<< endl;
+                    }//else is a hit
+                }
+                statearray2[setval2]='M';
+                statearray1[setval1]='I';
+                //break;
+            }
+            parity=true;
+        }
+
+        cout << "Cpu1 State of : " << hexl << " is " << statearray1[setval1] << endl;
+        cout << "Cpu2 State of : " << hexl << " is " << statearray2[setval2] << endl;
+        cout << endl;
+    }
 
     //std::cout << "Press enter to exit." << std::endl;
 	//std::cin.get();
