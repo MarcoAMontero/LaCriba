@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
   //Show results on terminar
     if (Id == 0) {
      printf ("\n");
-     printf ("This where the %ld uneven numbers before %d \n ",Cont,N);
+     printf ("These were the %ld uneven numbers before %d \n ",Cont,N);
      printf ("Total time %f ms\n", Time*1000);
     }
 //now you have to close communication
